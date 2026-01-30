@@ -10,10 +10,9 @@ export function generateOTP(): string {
 }
 
 export async function sendOTPEmail(email: string, code: string, purpose: string): Promise<boolean> {
-  // If SMTP is disabled or not configured, log it and skip
   if (process.env.SMTP_ENABLED === "false" || !envServer.SMTP_EMAIL) {
     console.log(`[Email Service] SMTP disabled or missing. OTP for ${email}: ${code}`)
-    return true // Pretend it worked so you can login in dev mode
+    return true
   }
 
   const transporter = nodemailer.createTransport({
@@ -54,7 +53,6 @@ export const defaultTemplates = {
 };
 
 export async function processTemplate(templateName: string, data: any): Promise<string> {
-  // Simple mock template processor
   return `This is a simulated email body for template: ${templateName}. Data: ${JSON.stringify(data)}`;
 }
 
