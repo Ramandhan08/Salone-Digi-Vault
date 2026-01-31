@@ -47,20 +47,68 @@ export async function sendOTPEmail(email: string, code: string, purpose: string)
 // --- NEW MISSING FUNCTIONS (Required to fix build) ---
 
 export const defaultTemplates = {
-  registration: "Event Registration Confirmed",
-  reminder: "Event Reminder",
-  cancellation: "Event Registration Cancelled"
+  registration: {
+    subject: "Event Registration Confirmed - {{eventName}}",
+    body: "Dear {{userName}},\n\nYour registration for {{eventName}} has been confirmed.\n\nRegistration Number: {{registrationNumber}}\nEvent Date: {{eventDate}}\nLocation: {{eventLocation}}\n\nPlease keep your QR code safe for check-in.\n\nThank you!"
+  },
+  reminder: {
+    subject: "Event Reminder - {{eventName}}",
+    body: "Dear {{userName}},\n\nThis is a reminder that {{eventName}} is coming up soon on {{eventDate}}.\n\nLocation: {{eventLocation}}\n\nThank you!"
+  },
+  cancellation: {
+    subject: "Event Registration Cancelled - {{eventName}}",
+    body: "Dear {{userName}},\n\nYour registration for {{eventName}} has been cancelled.\n\nThank you!"
+  },
+  thank_you: {
+    subject: "Thank You for Attending {{eventName}}",
+    body: "Dear {{userName}},\n\nThank you for attending {{eventName}}! We hope you enjoyed the event.\n\nPlease share your feedback: {{feedbackUrl}}\n\nBest regards,\nThe Team"
+  },
+  waitlist: {
+    subject: "Spot Available for {{eventName}}",
+    body: "Dear {{userName}},\n\nGood news! A spot has opened up for {{eventName}}.\n\nEvent Date: {{eventDate}}\nLocation: {{eventLocation}}\n\nYou have {{expiryHours}} hours to register: {{registrationUrl}}\n\nThank you!"
+  }
 };
 
-export async function processTemplate(templateName: string, data: any): Promise<string> {
-  return `This is a simulated email body for template: ${templateName}. Data: ${JSON.stringify(data)}`;
+export function processTemplate(template: string, variables: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(variables)) {
+    result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+  }
+  return result;
 }
 
 export async function sendEventEmail(
   to: string, 
   subject: string, 
-  html: string
+  html: string,
+  attachments?: Array<{ filename: string; content: string; encoding: string }>
 ): Promise<boolean> {
-  console.log(`[MOCK EVENT EMAIL] To: ${to} | Subject: ${subject}`);
-  return true;
+  if (process.env.SMTP_ENABLED === "false" || !envServer.SMTP_EMAIL) {
+    console.log(`[Email Service] SMTP disabled. Event email to ${to}: ${subject}`);
+    return true;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    auth: {
+      user: envServer.SMTP_EMAIL,
+      pass: envServer.SMTP_PASSWORD,
+    },
+  });
+
+  try {
+    await transporter.sendMail({
+      from: envServer.SMTP_EMAIL,
+      to,
+      subject,
+      html,
+      attachments,
+    });
+    return true;
+  } catch (error) {
+    console.error("Failed to send event email:", error);
+    return false;
+  }
 }
