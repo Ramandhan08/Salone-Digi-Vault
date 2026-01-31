@@ -16,7 +16,7 @@ export function GradientBackground({ children, style }: GradientBackgroundProps)
   const colors = Colors[colorScheme];
 
   // Default to dark gradient if in dark mode or if light mode doesn't have one defined yet
-  const gradientColors = colorScheme === 'dark' 
+  const gradientColors = colorScheme === 'dark' && 'backgroundGradient' in colors
     ? colors.backgroundGradient 
     : ['#FFFFFF', '#F0F2F5']; // Light mode fallback
 
