@@ -6,7 +6,7 @@ import { sendEventEmail, processTemplate, defaultTemplates } from "@/lib/email-s
 import { format } from "date-fns"
 
 // POST /api/events/[id]/register - Register for event
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const authHeader = request.headers.get("authorization")
         const token = getAuthToken(authHeader)
@@ -16,7 +16,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        const event = await db.getEvent(params.id)
+        const { id } = await params
+        const event = await db.getEvent(id)
         if (!event) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 })
         }
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         }
 
         // Check if already registered
-        const existingRegistrations = await db.getEventRegistrationsByEvent(params.id)
+        const existingRegistrations = await db.getEventRegistrationsByEvent(id)
         const alreadyRegistered = existingRegistrations.find((r) => r.userId === user.id)
         if (alreadyRegistered) {
             return NextResponse.json({ error: "You are already registered for this event" }, { status: 400 })
@@ -36,11 +37,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         // Check capacity
         if (existingRegistrations.length >= event.capacity) {
             // Add to waitlist
-            const waitlist = await db.getWaitlistByEvent(params.id)
+            const waitlist = await db.getWaitlistByEvent(id)
             const position = waitlist.length + 1
 
             await db.createWaitlistEntry({
-                eventId: params.id,
+                eventId: id,
                 userId: user.id,
                 userName: user.name,
                 userEmail: user.email,
@@ -57,12 +58,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         }
 
         // Generate registration number and QR code
-        const registrationNumber = generateRegistrationNumber(params.id)
-        const qrCode = await generateEventQRCode(registrationNumber, params.id, event.qrCodeSettings)
+        const registrationNumber = generateRegistrationNumber(id)
+        const qrCode = await generateEventQRCode(registrationNumber, id, event.qrCodeSettings)
 
         // Create registration
         const registration = await db.createEventRegistration({
-            eventId: params.id,
+            eventId: id,
             userId: user.id,
             userName: user.name,
             userEmail: user.email,
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         })
 
         // Update event attendee count
-        await db.updateEvent(params.id, {
+        await db.updateEvent(id, {
             currentAttendees: existingRegistrations.length + 1,
         })
 
@@ -111,10 +112,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         await db.createAuditLog({
             userId: user.id,
             action: "event_registration",
-            details: { eventId: params.id, registrationNumber },
+            details: { eventId: id, registrationNumber },
         })
 
-        console.log("[Events] User registered:", user.id, "for event:", params.id)
+        console.log("[Events] User registered:", user.id, "for event:", id)
 
         return NextResponse.json({
             success: true,
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 }
 
 // GET /api/events/[id]/register - Get user's registration for this event
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const authHeader = request.headers.get("authorization")
         const token = getAuthToken(authHeader)
@@ -151,12 +152,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        const registrations = await db.getEventRegistrationsByEvent(params.id)
+        const { id } = await params
+        const registrations = await db.getEventRegistrationsByEvent(id)
         const userRegistration = registrations.find((r) => r.userId === user.id)
 
         if (!userRegistration) {
             // Check if on waitlist
-            const waitlist = await db.getWaitlistByEvent(params.id)
+            const waitlist = await db.getWaitlistByEvent(id)
             const waitlistEntry = waitlist.find((w) => w.userId === user.id)
 
             if (waitlistEntry) {
@@ -190,7 +192,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // DELETE /api/events/[id]/register - Cancel registration
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const authHeader = request.headers.get("authorization")
         const token = getAuthToken(authHeader)
@@ -200,7 +202,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        const registrations = await db.getEventRegistrationsByEvent(params.id)
+        const { id } = await params
+        const registrations = await db.getEventRegistrationsByEvent(id)
         const userRegistration = registrations.find((r) => r.userId === user.id)
 
         if (!userRegistration) {
@@ -212,7 +215,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
             status: "cancelled"
         })
 
-        const event = await db.getEvent(params.id)
+        const event = await db.getEvent(id)
         if (!event) {
             return NextResponse.json({ success: true, message: "Registration cancelled" })
         }
@@ -225,7 +228,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         }
 
         // Check Waitlist & Notify first person
-        const waitlist = await db.getWaitlistByEvent(params.id)
+        const waitlist = await db.getWaitlistByEvent(id)
         // Get non-notified, valid entries
         const nextInLine = waitlist.find(w => !w.notified && (!w.expiresAt || w.expiresAt > new Date()))
 

@@ -4,7 +4,7 @@ import { requireAdminOrOfficer, getAuthToken } from "@/lib/auth"
 import { sendEventEmail, processTemplate, defaultTemplates } from "@/lib/email-service"
 
 // POST /api/events/[id]/check-out - Check-out attendee (admin/officer only)
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const authHeader = request.headers.get("authorization")
         const token = getAuthToken(authHeader)
@@ -14,6 +14,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
+        const { id } = await params
         const { registrationNumber, qrData } = await request.json()
 
         // Determine registration number (logic similar to check-in)
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             return NextResponse.json({ error: "Invalid registration number" }, { status: 404 })
         }
 
-        if (registration.eventId !== params.id) {
+        if (registration.eventId !== id) {
             return NextResponse.json({ error: "Registration does not match this event" }, { status: 400 })
         }
 
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             checkOutTime: new Date(),
         })
 
-        const event = await db.getEvent(params.id)
+        const event = await db.getEvent(id)
 
         // Send Thank You email automatically
         if (event) {

@@ -4,7 +4,7 @@ import { requireAdminOrOfficer, getAuthToken } from "@/lib/auth"
 import { sendEventEmail, processTemplate, defaultTemplates } from "@/lib/email-service"
 
 // POST /api/events/[id]/check-in - Check-in attendee (admin/officer only)
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const authHeader = request.headers.get("authorization")
         const token = getAuthToken(authHeader)
@@ -14,6 +14,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
+        const { id } = await params
         const { registrationNumber, qrData } = await request.json()
 
         if (!registrationNumber && !qrData) {
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
                     targetRegistrationNumber = parsed.registrationNumber
                 }
                 // Verify event ID matches if present in QR
-                if (parsed.eventId && parsed.eventId !== params.id) {
+                if (parsed.eventId && parsed.eventId !== id) {
                     return NextResponse.json({ error: "QR code belongs to a different event" }, { status: 400 })
                 }
             } catch {
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             return NextResponse.json({ error: "Invalid registration number" }, { status: 404 })
         }
 
-        if (registration.eventId !== params.id) {
+        if (registration.eventId !== id) {
             return NextResponse.json({ error: "Registration does not match this event" }, { status: 400 })
         }
 
@@ -66,10 +67,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             checkInTime: new Date(),
         })
 
-        const event = await db.getEvent(params.id)
+        const event = await db.getEvent(id)
 
         // Log the check-in
-        console.log(`[CheckEnd] User ${registration.userId} checked in to event ${params.id} by ${officer.id}`)
+        console.log(`[CheckEnd] User ${registration.userId} checked in to event ${id} by ${officer.id}`)
 
         // Optional: Send welcome email (uncomment if desired)
         /*
