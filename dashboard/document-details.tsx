@@ -224,7 +224,7 @@ export function DocumentDetails({ documentId }: { documentId: string }) {
                 <div className="flex-1">
                   <p className="font-semibold">AI Processing Complete</p>
                   <p className="text-sm text-muted-foreground">
-                    {format(new Date(document.metadata.processingDate), "PPpp")}
+                    {document.metadata.processingDate && format(new Date(document.metadata.processingDate), "PPpp")}
                   </p>
                 </div>
               </div>
