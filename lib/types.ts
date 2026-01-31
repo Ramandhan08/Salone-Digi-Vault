@@ -56,7 +56,7 @@ export interface DocumentMetadata {
   faceMatchSuccess?: boolean
   tamperScore?: number
   tamperFlags?: string[]
-  processingDate: Date
+  processingDate?: Date
   registryVerified?: boolean
   registryDetails?: string
   blockchain?: {
