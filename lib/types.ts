@@ -59,6 +59,12 @@ export interface DocumentMetadata {
   processingDate: Date
   registryVerified?: boolean
   registryDetails?: string
+  blockchain?: {
+    network: string
+    txHash: string
+    blockNumber: number
+    timestamp?: Date
+  }
 }
 
 // AI Processing Result
