@@ -11,13 +11,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { fileData } = await request.json()
+    const { fileData, fileName } = await request.json()
 
     if (!fileData) {
       return NextResponse.json({ error: "Missing file data" }, { status: 400 })
     }
 
-    const documentType = await AIService.detectDocumentType(fileData)
+    const documentType = await AIService.detectDocumentType(fileData, fileName || "document.pdf")
 
     return NextResponse.json({ documentType })
   } catch (error) {
