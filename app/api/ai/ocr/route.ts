@@ -11,13 +11,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { fileData } = await request.json()
+    const { fileData, fileName } = await request.json()
 
     if (!fileData) {
       return NextResponse.json({ error: "Missing file data" }, { status: 400 })
     }
 
-    const result = await AIService.extractOCR(fileData)
+    const result = await AIService.extractOCR(fileData, fileName || "document.pdf")
 
     return NextResponse.json(result)
   } catch (error) {
